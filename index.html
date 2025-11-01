@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Liga Halcones — Gestión de Finanzas</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" />
+  <style>
+    /* Paleta y tema */
+    :root {
+      --barn-red-100: #180000; --barn-red-200: #310000; --barn-red-300: #490000; --barn-red-400: #620000; --barn-red-500: #780000; --barn-red-600: #c80000; --barn-red-700: #ff1616; --barn-red-800: #ff6464; --barn-red-900: #ffb1b1;
+      --fire-brick-100: #260406; --fire-brick-200: #4d070c; --fire-brick-300: #730b12; --fire-brick-400: #990e17; --fire-brick-500: #c1121f; --fire-brick-600: #eb2330; --fire-brick-700: #f05a64; --fire-brick-800: #f59198; --fire-brick-900: #fac8cb;
+      --papaya-whip-100: #593c04; --papaya-whip-200: #b17908; --papaya-whip-300: #f5ae22; --papaya-whip-400: #f9cf7b; --papaya-whip-500: #fdf0d5; --papaya-whip-600: #fdf2dc; --papaya-whip-700: #fef5e5; --papaya-whip-800: #fef9ed; --papaya-whip-900: #fffcf6;
+      --prussian-blue-100: #00090e; --prussian-blue-200: #00131d; --prussian-blue-300: #001c2b; --prussian-blue-400: #002539; --prussian-blue-500: #003049; --prussian-blue-600: #00679f; --prussian-blue-700: #00a0f7; --prussian-blue-800: #50c2ff; --prussian-blue-900: #a7e0ff;
+      --air-blue-100: #122028; --air-blue-200: #233f51; --air-blue-300: #355f79; --air-blue-400: #477fa2; --air-blue-500: #669bbc; --air-blue-600: #85afc9; --air-blue-700: #a4c3d7; --air-blue-800: #c2d7e4; --air-blue-900: #e1ebf2;
+
+      /* Bootstrap overrides */
+      --bs-primary: var(--fire-brick-500);
+      --bs-danger: var(--barn-red-500);
+      --bs-info: var(--air-blue-500);
+      --bs-secondary: var(--prussian-blue-500);
+    }
+    body { background-color: var(--papaya-whip-500); }
+    .card { border-radius: 14px; }
+    .table thead th { white-space: nowrap; }
+    .actions i { cursor: pointer; }
+    .total-general { font-weight: 700; }
+    .sticky-footer th, .sticky-footer td { position: sticky; bottom: 0; background: #fff; }
+    .badge-round { border-radius: 999px; }
+
+    /* Tabla y columnas fijas */
+    :root { --player-col-width: 220px; --actions-col-width: 120px; }
+    .table-pay { min-width: 1200px; }
+    .table-pay th, .table-pay td { white-space: nowrap; }
+    .sticky-player { position: sticky; left: 0; background: var(--papaya-whip-900); z-index: 3; }
+    .sticky-actions { position: sticky; left: var(--player-col-width); background: var(--papaya-whip-900); z-index: 2; box-shadow: 8px 0 12px -12px rgba(0,0,0,.2); }
+    thead .sticky-player, thead .sticky-actions { z-index: 5; }
+    .player-col { width: var(--player-col-width); min-width: var(--player-col-width); max-width: var(--player-col-width); }
+    .actions-col { width: var(--actions-col-width); min-width: var(--actions-col-width); max-width: var(--actions-col-width); }
+    tbody .sticky-player { box-shadow: 8px 0 12px -12px rgba(0,0,0,.2); }
+
+    /* Inputs más limpios */
+    .month-input {
+      border: 1px solid #d9e2ec;
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: .35rem .5rem;
+      height: 36px;
+      font-weight: 500;
+    }
+    .month-input:focus {
+      border-color: #c4d4e3;
+      box-shadow: 0 0 0 .2rem rgba(99, 153, 225, .15);
+    }
+    /* Ocultar flechas de inputs number */
+    .month-input::-webkit-outer-spin-button,
+    .month-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .month-input { -moz-appearance: textfield; }
+
+    /* Filas alternas suaves */
+    tbody tr:nth-child(odd) { background-color: var(--papaya-whip-900); }
+    tbody tr:nth-child(even) { background-color: var(--papaya-whip-600); }
+
+    /* Columnas especiales */
+    .bg-fines, .col-fines { background-color: var(--papaya-whip-700) !important; }
+    .bg-techs, .col-techs { background-color: var(--fire-brick-900) !important; }
+    .bg-torneo, .col-torneo { background-color: var(--air-blue-900) !important; }
+    /* Fila inactiva */
+    .inactive-row { background-color: var(--air-blue-900) !important; opacity: .9; }
+    .inactive-row .month-input { background-color: var(--papaya-whip-900); }
+    /* Celda con abono parcial (pendiente) */
+    .partial-cell { background-color: var(--papaya-whip-400) !important; }
+    /* Input de mes vencido (rojo) */
+    .month-input.due-input {
+      background-color: var(--fire-brick-500);
+      border-color: var(--barn-red-600);
+      color: #fff;
+    }
+    /* Input de mes pendiente (parcial, no rojo) */
+    .month-input.partial-input {
+      background-color: var(--papaya-whip-400);
+      border-color: var(--papaya-whip-200);
+      color: #111;
+    }
+    /* Input de mes pagado (success) */
+    .month-input.paid-input {
+      background-color: #d1fae5; /* verde pastel */
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+
+    /* Cards métricas (colores y tamaños más sobrios) */
+    .metric-card { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; color: #111; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .metric-card .card-body { padding: .75rem 1rem; }
+    .metric-card .h4, .metric-card .h5, .metric-card .small, .metric-card span { color: #111; }
+    .metric-card .h4 { font-size: 1.25rem; }
+    .metric-card .h5 { font-size: 1.1rem; }
+    .metric-card .text-subtle { color: #6b7280; }
+    .metric-card i { color: #6b7280; opacity: .9; }
+    .metric-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-color, #ddd); }
+    .metric-income { --accent-color: var(--prussian-blue-600); }
+    .metric-expense { --accent-color: var(--fire-brick-600); }
+    .metric-balance { --accent-color: var(--air-blue-600); }
+  </style>
+  
+</head>
+<body>
+  <div class="container-fluid py-3">
+    <h1 class="text-center text-danger fw-bold">Liga Halcones</h1>
+    <p class="text-center text-muted mb-4">Gestión de Finanzas</p>
+
+    <!-- Dashboard de Totales -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-4">
+        <div class="card shadow-sm metric-card metric-income">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-subtle">Ingresos Totales</span>
+              <i class="fa-solid fa-arrow-trend-up"></i>
+            </div>
+            <div id="globalIncomeValue" class="h4 fw-bold mt-1">$0.00</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card shadow-sm metric-card metric-expense">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-subtle">Gastos Totales</span>
+              <i class="fa-solid fa-money-bill-wave"></i>
+            </div>
+            <div id="globalExpenseValue" class="h4 fw-bold mt-1">$0.00</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card shadow-sm metric-card metric-balance">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-subtle">Balance General</span>
+              <i class="fa-solid fa-scale-balanced"></i>
+            </div>
+            <div id="globalBalanceValue" class="h4 fw-bold mt-1">$0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+          <h6 class="mb-0">Totales por Mes</h6>
+          <select id="dashboardMonthSelect" class="form-select form-select-sm" style="width: 130px;"></select>
+        </div>
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <div class="card metric-card metric-income">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="text-subtle small">Ingresos del Mes</span>
+                  <i class="fa-solid fa-arrow-trend-up"></i>
+                </div>
+                <div id="monthIncomeValue" class="h5 fw-bold mt-1">$0.00</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="card metric-card metric-expense">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="text-subtle small">Gastos del Mes</span>
+                  <i class="fa-solid fa-money-bill-wave"></i>
+                </div>
+                <div id="monthExpenseValue" class="h5 fw-bold mt-1">$0.00</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="card metric-card metric-balance">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="text-subtle small">Balance del Mes</span>
+                  <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+                <div id="monthBalanceValue" class="h5 fw-bold mt-1">$0.00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+          <h5 class="mb-0">Control de Pagos</h5>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <select id="yearSelect" class="form-select form-select-sm" style="width: 110px;"></select>
+            <button id="reportBtn" class="btn btn-info btn-sm">
+              <i class="fa-solid fa-file-csv me-1"></i> Generar Reporte
+            </button>
+            <button id="importBtn" class="btn btn-secondary btn-sm">
+              <i class="fa-solid fa-file-import me-1"></i> Importar
+            </button>
+            <button id="addPlayerBtn" class="btn btn-danger btn-sm">
+              <i class="fa-solid fa-user-plus me-1"></i> Agregar Jugador
+            </button>
+            <button id="conceptBtn" class="btn btn-secondary btn-sm">
+              <i class="fa-solid fa-circle-plus me-1"></i> Agregar Concepto
+            </button>
+            <div id="saveStatus" class="d-flex align-items-center small text-muted d-none ms-2">
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Guardando…
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-2 small text-muted" id="conceptInfo">Sin cuota base</div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle table-sm table-pay">
+            <thead class="table-light">
+              <tr>
+                <th class="sticky-player player-col">Jugador</th>
+                <th class="sticky-actions actions-col">Acciones</th>
+                <th>Ene</th>
+                <th>Feb</th>
+                <th>Mar</th>
+                <th>Abr</th>
+                <th>May</th>
+                <th>Jun</th>
+                <th>Jul</th>
+                <th>Ago</th>
+                <th>Sep</th>
+                <th>Oct</th>
+                <th>Nov</th>
+                <th>Dic</th>
+                <th class="bg-fines">Multas</th>
+                <th class="bg-techs">Técnicas</th>
+                <th class="bg-torneo">Torneo</th>
+              </tr>
+            </thead>
+            <tbody id="playersTbody"></tbody>
+            <tfoot>
+              <tr id="monthTotalsRow" class="table-secondary"></tr>
+              <tr class="table-danger total-general">
+                <th colspan="16" class="text-end">Total General</th>
+                <th id="grandTotalCell" class="text-end">$0.00</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal: Importar datos -->
+  <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Importar jugadores y pagos</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-2">Copia desde Excel las columnas con encabezados: Nombre, meses (Enero… Diciembre) y opcional "Torneo"; pega aquí. Se aceptan TSV (tabs) o CSV.</p>
+          <textarea id="importText" class="form-control" rows="10" placeholder="Nombre\tEnero\tFebrero\t...\tTorneo\nJose Montes de Oca\t200\t200\t...\t1700"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="processImportBtn" class="btn btn-primary">Procesar e Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sección: Gastos por mes -->
+  <div class="card shadow-sm mt-3">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="mb-0">Gastos por mes</h5>
+        <div class="d-flex align-items-center gap-2">
+          <select id="expenseMonthSelect" class="form-select form-select-sm" style="width: 130px;"></select>
+          <button id="addExpenseBtn" class="btn btn-secondary btn-sm"><i class="fa-solid fa-plus me-1"></i> Agregar Gasto</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle table-sm">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 80px;">Día</th>
+              <th>Concepto</th>
+              <th style="width: 140px;" class="text-end">Monto</th>
+              <th style="width: 100px;">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="expenseList"></tbody>
+          <tfoot>
+            <tr class="table-secondary">
+              <th colspan="2" class="text-end">Total del mes</th>
+              <th id="expenseTotalCell" class="text-end">$0.00</th>
+              <th></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Agregar Jugador -->
+  <div class="modal fade" id="playerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Agregar Jugador</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label for="playerName" class="form-label">Nombre</label>
+          <input type="text" id="playerName" class="form-control" placeholder="Ej. Carlos Méndez" />
+          <div class="mt-3">
+            <label class="form-label">Tipo de jugador</label>
+            <select id="playerType" class="form-select">
+              <option value="nuevo">Nuevo (solo adeuda mes actual)</option>
+              <option value="viejo">Viejo (adeuda meses anteriores también)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="savePlayerBtn" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Renombrar Jugador -->
+  <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Renombrar Jugador</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="renamePlayerId" />
+          <label for="renameName" class="form-label">Nuevo nombre</label>
+          <input type="text" id="renameName" class="form-control" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="saveRenameBtn" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Concepto Base -->
+  <div class="modal fade" id="conceptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Agregar Concepto (cuota base mensual)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="conceptName" class="form-label">Nombre del concepto</label>
+            <input type="text" id="conceptName" class="form-control" placeholder="Ej. Inscripción, Mensualidad" />
+          </div>
+          <div>
+            <label for="conceptAmount" class="form-label">Monto por jugador/mes</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" id="conceptAmount" class="form-control" min="0" step="0.01" placeholder="0.00" />
+            </div>
+          </div>
+          <div class="form-text">El monto se suma a los totales mensuales de todos los jugadores.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="saveConceptBtn" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Agregar Gasto -->
+  <div class="modal fade" id="expenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Agregar Gasto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="expenseDay" class="form-label">Día</label>
+            <input type="number" id="expenseDay" class="form-control" min="1" max="31" placeholder="Ej. 7" />
+          </div>
+          <div class="mb-3">
+            <label for="expenseConcept" class="form-label">Concepto</label>
+            <input type="text" id="expenseConcept" class="form-control" placeholder="Ej. Colmado, Pizza, Árbitro" />
+          </div>
+          <div class="mb-1">
+            <label for="expenseAmount" class="form-label">Monto</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" id="expenseAmount" class="form-control" min="0" step="0.01" placeholder="0.00" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="saveExpenseBtn" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal: Pago rápido -->
+  <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="paymentModalTitle">Aplicar pago</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="paymentPlayerId" />
+          <div class="mb-3">
+            <label for="paymentType" class="form-label">Tipo</label>
+            <select id="paymentType" class="form-select">
+              <option value="mensualidad">Mensualidad (mes)</option>
+              <option value="multa">Multa</option>
+              <option value="tecnica">Técnica</option>
+              <option value="torneo">Torneo</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="paymentAmount" class="form-label">Monto</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" id="paymentAmount" class="form-control" min="0" step="0.01" placeholder="0.00" />
+            </div>
+          </div>
+          <div id="paymentHelp" class="form-text" style="color: #477fa2;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="savePaymentBtn" class="btn btn-danger w-100 fw-bold">Agregar Pago</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery & Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Firebase SDK (module) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    // Duplicamos MONTHS para helpers del módulo
+    const MONTHS_HELPER = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const firebaseConfig = {
+      apiKey: "AIzaSyAbUmPGTHhDfNlSaRlmFXuBASl6oSCNkgE",
+      authDomain: "halcones-pay.firebaseapp.com",
+      projectId: "halcones-pay",
+      storageBucket: "halcones-pay.firebasestorage.app",
+      messagingSenderId: "546083469637",
+      appId: "1:546083469637:web:058da70a913b2a278c262c"
+    };
+    const fbApp = initializeApp(firebaseConfig);
+    const db = getFirestore(fbApp);
+    window.fbApp = fbApp; window.db = db;
+    // Helpers globales para lectura/escritura por año
+    window.loadYearFromFirebase = async (y) => {
+      const ref = doc(db, 'years', String(y));
+      const snap = await getDoc(ref);
+      if(snap.exists()) return snap.data();
+      // Doc no existe: devolvemos estructura vacía
+      const expenses = {}; MONTHS_HELPER.forEach(m => expenses[m] = []);
+      return { players: [], conceptBase: 0, expenses };
+    };
+    window.saveYearToFirebase = async (y, data) => {
+      const ref = doc(db, 'years', String(y));
+      await setDoc(ref, data, { merge: false });
+    };
+  </script>
+  <script>
+    const STORAGE_KEY = 'halcones-pay-data-v1';
+    const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    const fmt = (v) => '$' + Number(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const escapeHtml = (s) => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+
+    const app = {
+      year: new Date().getFullYear(),
+      data: loadData()
+    };
+
+    function loadData(){ return {}; }
+    function showSaving(){ $('#saveStatus').removeClass('d-none'); }
+    function hideSaving(){ $('#saveStatus').addClass('d-none'); }
+    function saveData(){
+      try {
+        if(window.saveYearToFirebase){
+          showSaving();
+          return window.saveYearToFirebase(app.year, app.data[app.year])
+            .then(() => hideSaving())
+            .catch(e => { console.error('Firestore save error', e); hideSaving(); });
+        }
+      } catch (e) { console.error('Firestore save error', e); hideSaving(); }
+    }
+
+    function mkPlayer(name) {
+      const payments = {}; MONTHS.forEach(m => payments[m] = 0);
+      return { id: 'p_' + Math.random().toString(36).slice(2,9), name, payments, fines: 0, techs: 0, torneo: 0, credit: 0, active: true, joinMonth: new Date().getMonth() };
+    }
+    function ensureYear(y){
+      if(!app.data[y]){
+        const expenses = {}; MONTHS.forEach(m => expenses[m] = []);
+        app.data[y] = { players: [], conceptBase: 0, expenses };
+      }
+    }
+
+    function setupYears(){
+      const now = new Date().getFullYear();
+      const years = [now-1, now, now+1, now+2];
+      const sel = $('#yearSelect').empty();
+      years.forEach(y => sel.append(`<option value="${y}">${y}</option>`));
+      app.year = now; sel.val(app.year);
+      // Mes para gastos
+      const expSel = $('#expenseMonthSelect').empty();
+      MONTHS.forEach((m,i) => expSel.append(`<option value="${i}">${m}</option>`));
+      expSel.val(0);
+      // Mes para dashboard
+      const dashSel = $('#dashboardMonthSelect');
+      if(dashSel.length){
+        dashSel.empty(); MONTHS.forEach((m,i) => dashSel.append(`<option value="${i}">${m}</option>`));
+        dashSel.val(new Date().getMonth());
+      }
+    }
+
+    async function hydrateYearFromFirestore(y){
+      if(window.loadYearFromFirebase){
+        try {
+          const data = await window.loadYearFromFirebase(y);
+          app.data[y] = data || {};
+          ensureYear(y);
+        } catch(e){ console.error('Firestore load error', e); ensureYear(y); }
+      } else {
+        ensureYear(y);
+      }
+    }
+
+    function renderAll(){ ensureYear(app.year); $('#yearSelect').val(app.year); renderPlayers(); renderTotals(); updateConceptInfo(); renderExpenses(); renderDashboard(); }
+
+    function renderPlayers(){
+      const tbody = $('#playersTbody').empty();
+      const yr = app.data[app.year];
+      yr.players.forEach(p => {
+        const tr = $('<tr>').attr('data-id', p.id);
+        tr.append(`<td class="fw-semibold sticky-player player-col">${escapeHtml(p.name)}</td>`);
+        const powCls = (p.active === false) ? 'text-muted' : 'text-success';
+        const powTitle = (p.active === false) ? 'Habilitar' : 'Deshabilitar';
+        const actionsHtml = `
+          <i class="fa-solid fa-pen text-primary me-2 rename-player" title="Editar"></i>
+          <i class="fa-solid fa-power-off ${powCls} me-2 toggle-active" title="${powTitle}"></i>
+          <i class="fa-solid fa-peso-sign text-warning me-2 payment-player" title="Aplicar pago"></i>
+          <i class="fa-solid fa-trash text-danger delete-player" title="Eliminar"></i>
+        `;
+        const actionsTd = $('<td class="text-nowrap sticky-actions actions-col">').html(actionsHtml);
+        tr.append(actionsTd);
+        const base = parseFloat(yr.conceptBase || 0);
+        const nowIdx = new Date().getMonth();
+        const joinIdx = Number(p.joinMonth ?? 0);
+        MONTHS.forEach((m, idx) => {
+          const val = Number(p.payments[m]||0);
+          const input = $(`<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input" data-month="${m}" data-idx="${idx}">`).val(val ? val.toFixed(2) : '');
+          input.prop('readonly', true);
+          if(p.active === false) input.prop('disabled', true);
+          const td = $('<td>');
+          const isPartial = base > 0 && val > 0 && val < base;
+          const isDueZero = val <= 0 && ((idx < nowIdx && idx >= joinIdx) || idx === nowIdx);
+          const isPaid = base > 0 && val >= base;
+          if(isPartial) input.addClass('partial-input');
+          if(isDueZero) input.addClass('due-input');
+          if(isPaid) input.addClass('paid-input');
+          td.append(input);
+          tr.append(td);
+        });
+        const finesInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input fine-input">').val(Number(p.fines||0) ? Number(p.fines||0).toFixed(2) : '');
+        finesInput.prop('readonly', true);
+        if(p.active === false) finesInput.prop('disabled', true);
+        tr.append($('<td class="col-fines">').append(finesInput));
+        const techInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input tech-input">').val(Number(p.techs||0) ? Number(p.techs||0).toFixed(2) : '');
+        techInput.prop('readonly', true);
+        if(p.active === false) techInput.prop('disabled', true);
+        tr.append($('<td class="col-techs">').append(techInput));
+        const torneoInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input torneo-input">').val(Number(p.torneo||0) ? Number(p.torneo||0).toFixed(2) : '');
+        torneoInput.prop('readonly', true);
+        if(p.active === false) torneoInput.prop('disabled', true);
+        tr.append($('<td class="col-torneo">').append(torneoInput));
+        if(p.active === false) tr.addClass('inactive-row');
+        tbody.append(tr);
+      });
+    }
+
+    function sumMonth(m){
+      const yr = app.data[app.year];
+      let total = 0; yr.players.forEach(p => { if(p.active !== false) total += Number(p.payments[m]||0); });
+      const expenses = (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
+      return total - expenses; // neto después de gastos del mes
+    }
+    function monthIncome(m){
+      const yr = app.data[app.year];
+      let total = 0; yr.players.forEach(p => { if(p.active !== false) total += Number(p.payments[m]||0); });
+      return total;
+    }
+    function monthExpenses(m){
+      const yr = app.data[app.year];
+      return (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
+    }
+    function expensesAllMonths(){
+      return MONTHS.reduce((acc,m)=> acc + monthExpenses(m), 0);
+    }
+    function incomeAllMonths(){
+      return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFines() + sumTechs() + sumTorneo();
+    }
+    function sumFines(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.fines||0); }); return t; }
+    function sumTechs(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.techs||0); }); return t; }
+    function sumTorneo(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.torneo||0); }); return t; }
+    function renderTotals(){
+      const yr = app.data[app.year];
+      const row = $('#monthTotalsRow').empty();
+      row.append('<th class="sticky-player player-col text-end">Total por mes</th>');
+      row.append('<th class="sticky-actions actions-col"></th>');
+      let grand = 0;
+      MONTHS.forEach(m => {
+        const v = sumMonth(m); grand += v;
+        const exp = (yr.expenses?.[m] || []).reduce((acc,e)=> acc + Number(e.amount||0), 0);
+        row.append(`<th class="text-end fw-semibold" title="Gastos: ${fmt(exp)}">${fmt(v)}</th>`);
+      });
+      const finesTotal = sumFines(); const techsTotal = sumTechs(); const torneoTotal = sumTorneo();
+      grand += finesTotal + techsTotal + torneoTotal;
+      row.append(`<th class="text-end fw-semibold col-fines">${fmt(finesTotal)}</th>`);
+      row.append(`<th class="text-end fw-semibold col-techs">${fmt(techsTotal)}</th>`);
+      row.append(`<th class="text-end fw-semibold col-torneo">${fmt(torneoTotal)}</th>`);
+      $('#grandTotalCell').text(fmt(grand));
+    }
+
+    function renderDashboard(){
+      // Globales
+      const gIncome = incomeAllMonths();
+      const gExpense = expensesAllMonths();
+      const gBalance = gIncome - gExpense;
+      $('#globalIncomeValue').text(fmt(gIncome));
+      $('#globalExpenseValue').text(fmt(gExpense));
+      $('#globalBalanceValue').text(fmt(gBalance));
+
+      // Por mes
+      const idx = Number($('#dashboardMonthSelect').val() || new Date().getMonth());
+      const m = MONTHS[idx];
+      const mIncome = monthIncome(m);
+      const mExpense = monthExpenses(m);
+      const mBalance = mIncome - mExpense;
+      $('#monthIncomeValue').text(fmt(mIncome));
+      $('#monthExpenseValue').text(fmt(mExpense));
+      $('#monthBalanceValue').text(fmt(mBalance));
+    }
+
+    function updateConceptInfo(){
+      const base = app.data[app.year]?.conceptBase || 0; const count = app.data[app.year]?.players?.length || 0;
+      $('#conceptInfo').text(base > 0 ? `Cuota base: ${fmt(base)} por jugador/mes · ${count} jugadores` : 'Sin cuota base');
+    }
+
+    function updatePaymentHelp(){
+      const type = $('#paymentType').val();
+      const amount = parseFloat($('#paymentAmount').val() || 0);
+      const base = parseFloat(app.data[app.year]?.conceptBase || 0);
+      let txt = '';
+      if(type === 'mensualidad'){
+        if(base > 0){
+          if(amount > 0){
+            const months = Math.floor(amount / base);
+            const used = months * base; const rest = amount - used;
+            const plural = months === 1 ? '' : 'es';
+            txt = `Cada mes cuesta ${fmt(base)}. Si pagas ${fmt(amount)}, se cubren ${months} mes${plural} (${fmt(used)})${rest > 0 ? ` y ${fmt(rest)} queda de abono` : ''}`;
+          } else {
+            txt = `Cada mes cuesta ${fmt(base)}.`;
+          }
+        } else {
+          txt = `Sin cuota base definida. Configura la cuota en “Agregar Concepto” para repartir automáticamente por meses.`;
+        }
+      } else { txt = ''; }
+      $('#paymentHelp').text(txt);
+    }
+
+    // Events
+    $(document).on('input', '.month-input', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id'); const m = $(this).data('month');
+      const val = parseFloat($(this).val() || 0); const yr = app.data[app.year];
+      const player = yr.players.find(p => p.id === id); if(player){ player.payments[m] = isNaN(val) ? 0 : val; }
+      // Actualizar resaltado parcial
+      const base = parseFloat(yr.conceptBase || 0);
+      const td = $(this).closest('td');
+      const idx = Number($(this).attr('data-idx'));
+      const nowIdx = new Date().getMonth();
+      const joinIdx = Number(player?.joinMonth ?? 0);
+      const isPartial = base > 0 && val > 0 && val < base;
+      const isDueZero = val <= 0 && ((idx < nowIdx && idx >= joinIdx) || idx === nowIdx);
+      const isPaid = base > 0 && val >= base;
+      $(this).toggleClass('partial-input', isPartial);
+      $(this).toggleClass('due-input', isDueZero);
+      $(this).toggleClass('paid-input', isPaid);
+      td.removeClass('partial-cell');
+      saveData(); renderTotals();
+    });
+
+    $(document).on('input', '.fine-input', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id'); const val = parseFloat($(this).val() || 0);
+      const yr = app.data[app.year]; const player = yr.players.find(p => p.id === id); if(player){ player.fines = isNaN(val) ? 0 : val; }
+      saveData(); renderTotals();
+    });
+    $(document).on('input', '.tech-input', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id'); const val = parseFloat($(this).val() || 0);
+      const yr = app.data[app.year]; const player = yr.players.find(p => p.id === id); if(player){ player.techs = isNaN(val) ? 0 : val; }
+      saveData(); renderTotals();
+    });
+
+    $(document).on('input', '.torneo-input', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id'); const val = parseFloat($(this).val() || 0);
+      const yr = app.data[app.year]; const player = yr.players.find(p => p.id === id); if(player){ player.torneo = isNaN(val) ? 0 : val; }
+      saveData(); renderTotals();
+    });
+
+    // Toggle activo/inactivo
+    $(document).on('click', '.toggle-active', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id');
+      const yr = app.data[app.year]; const player = yr.players.find(p => p.id === id);
+      if(player){ player.active = player.active === false ? true : false; saveData(); renderAll(); }
+    });
+
+    // Modal de pagos rápidos
+    $('#paymentType').on('change', function(){
+      updatePaymentHelp();
+    });
+    $(document).on('click', '.payment-player', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id'); const name = tr.find('td').first().text().trim();
+      $('#paymentPlayerId').val(id);
+      $('#paymentAmount').val('');
+      $('#paymentType').val('mensualidad').trigger('change');
+      $('#paymentModalTitle').text(`Agregar Pago - ${name}`);
+      updatePaymentHelp();
+      new bootstrap.Modal('#paymentModal').show();
+    });
+    $('#paymentAmount').on('input', updatePaymentHelp);
+
+    // Import helpers
+    const MONTH_ALIASES = {
+      'enero':'Ene','febrero':'Feb','marzo':'Mar','abril':'Abr','mayo':'May','junio':'Jun',
+      'julio':'Jul','agosto':'Ago','septiembre':'Sep','setiembre':'Sep','octubre':'Oct','noviembre':'Nov','diciembre':'Dic',
+      'ene':'Ene','feb':'Feb','mar':'Mar','abr':'Abr','may':'May','jun':'Jun','jul':'Jul','ago':'Ago','sep':'Sep','oct':'Oct','nov':'Nov','dic':'Dic'
+    };
+    function normalizeNumber(str){
+      if(!str) return 0;
+      const s = String(str).replace(/[^0-9,.-]/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',', '.');
+      const n = parseFloat(s); return isNaN(n) ? 0 : n;
+    }
+    function parseImportText(text){
+      const lines = (text||'').split(/\r?\n/).filter(l => l.trim().length);
+      if(lines.length === 0) return [];
+      const rows = lines.map(line => line.split(/\t|,/));
+      const header = rows[0].map(h => (h||'').trim());
+      const colMap = {}; // abbr month -> index
+      header.forEach((h,i)=>{
+        const key = (h||'').toLowerCase();
+        Object.entries(MONTH_ALIASES).forEach(([full,abbr])=>{
+          if(key.includes(full)) colMap[abbr] = i;
+        });
+        if(/torneo/i.test(h)) colMap['torneo'] = i;
+      });
+      const out = [];
+      for(let r=1; r<rows.length; r++){
+        const cells = rows[r];
+        const name = (cells[0]||'').trim();
+        if(!name) continue;
+        const payments = {}; MONTHS.forEach(m=>{ const i = colMap[m]; payments[m] = normalizeNumber(i!=null ? cells[i]||'' : ''); });
+        const torneo = colMap['torneo']!=null ? normalizeNumber(cells[colMap['torneo']]||'') : 0;
+        out.push({ name, payments, torneo });
+      }
+      return out;
+    }
+
+    function allocateMensualidad(player, amount){
+      const base = parseFloat(app.data[app.year]?.conceptBase || 0);
+      if(base <= 0){
+        // Sin cuota base no es posible distribuir por meses: guardar como crédito
+        player.credit = Number(player.credit||0) + amount; return;
+      }
+      const startIdx = Number(player?.joinMonth ?? 0);
+      for(let i=startIdx; i<MONTHS.length && amount > 0; i++){
+        const m = MONTHS[i];
+        const paid = Number(player.payments[m]||0);
+        const need = Math.max(0, base - paid);
+        if(need > 0){
+          const apply = Math.min(need, amount);
+          player.payments[m] = paid + apply;
+          amount -= apply;
+        }
+      }
+      if(amount > 0){ player.credit = Number(player.credit||0) + amount; }
+    }
+    $('#savePaymentBtn').on('click', function(){
+      const id = $('#paymentPlayerId').val();
+      const amount = parseFloat($('#paymentAmount').val() || 0);
+      const type = $('#paymentType').val();
+      if(isNaN(amount) || amount <= 0) return;
+      const yr = app.data[app.year]; const player = yr.players.find(p => p.id === id);
+      if(player){
+        if(type === 'mensualidad'){
+          allocateMensualidad(player, amount);
+        } else if(type === 'multa') { player.fines = Number(player.fines||0) + amount; }
+        else if(type === 'tecnica') { player.techs = Number(player.techs||0) + amount; }
+        else if(type === 'torneo') { player.torneo = Number(player.torneo||0) + amount; }
+      }
+      saveData(); renderAll();
+      bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+    });
+
+    $('#addPlayerBtn').on('click', () => { $('#playerName').val(''); $('#playerType').val('nuevo'); new bootstrap.Modal('#playerModal').show(); });
+
+    // Import UI events
+    $('#importBtn').on('click', function(){
+      $('#importText').val('');
+      new bootstrap.Modal('#importModal').show();
+    });
+    $('#processImportBtn').on('click', function(){
+      const text = $('#importText').val();
+      const rows = parseImportText(text);
+      if(rows.length === 0) return;
+      ensureYear(app.year);
+      const yr = app.data[app.year];
+      rows.forEach(row => {
+        let player = yr.players.find(p => p.name.toLowerCase() === row.name.toLowerCase());
+        if(!player){ player = mkPlayer(row.name); yr.players.push(player); }
+        MONTHS.forEach(m => { player.payments[m] = Number(row.payments[m]||0); });
+        player.torneo = Number(row.torneo||0);
+      });
+      saveData(); renderAll();
+      bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+    });
+    $('#savePlayerBtn').on('click', () => {
+      const name = ($('#playerName').val() || '').trim(); if(!name) return;
+      const type = ($('#playerType').val() || 'nuevo');
+      const p = mkPlayer(name);
+      p.joinMonth = (type === 'viejo') ? 0 : new Date().getMonth();
+      app.data[app.year].players.push(p); saveData(); renderAll();
+      bootstrap.Modal.getInstance(document.getElementById('playerModal')).hide();
+    });
+
+    $(document).on('click', '.rename-player', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id'); const curr = tr.find('td').first().text().trim();
+      $('#renamePlayerId').val(id); $('#renameName').val(curr); new bootstrap.Modal('#renameModal').show();
+    });
+    $('#saveRenameBtn').on('click', () => {
+      const id = $('#renamePlayerId').val(); const name = ($('#renameName').val() || '').trim(); if(!name) return;
+      const player = app.data[app.year].players.find(p => p.id === id); if(player){ player.name = name; saveData(); renderAll(); }
+      bootstrap.Modal.getInstance(document.getElementById('renameModal')).hide();
+    });
+
+    $(document).on('click', '.delete-player', function(){
+      const tr = $(this).closest('tr'); const id = tr.data('id');
+      if(confirm('¿Eliminar jugador?')){ app.data[app.year].players = app.data[app.year].players.filter(p => p.id !== id); saveData(); renderAll(); }
+    });
+
+    $('#yearSelect').on('change', async function(){ app.year = Number($(this).val()); await hydrateYearFromFirestore(app.year); renderAll(); });
+
+    $('#conceptBtn').on('click', () => { $('#conceptName').val(''); $('#conceptAmount').val(app.data[app.year]?.conceptBase ?? 0); new bootstrap.Modal('#conceptModal').show(); });
+    $('#saveConceptBtn').on('click', () => {
+      const amount = parseFloat($('#conceptAmount').val() || 0); app.data[app.year].conceptBase = isNaN(amount) ? 0 : amount; saveData(); renderTotals(); updateConceptInfo();
+      bootstrap.Modal.getInstance(document.getElementById('conceptModal')).hide();
+    });
+
+    $('#reportBtn').on('click', () => {
+      const yr = app.data[app.year];
+      const lines = [];
+      lines.push(['Año', app.year].join(','));
+      lines.push(['Cuota base por mes', yr.conceptBase].join(','));
+      lines.push('');
+      const header = ['Jugador','Acciones'].concat(MONTHS).concat(['Multas','Técnicas','Torneo']); lines.push(header.join(','));
+      yr.players.forEach(p => { const row = [p.name,(p.active===false?'Inactivo':'')].concat(MONTHS.map(m => Number(p.payments[m]||0).toFixed(2))).concat([Number(p.fines||0).toFixed(2), Number(p.techs||0).toFixed(2), Number(p.torneo||0).toFixed(2)]); lines.push(row.join(',')); });
+      lines.push(['Total por mes',''].concat(MONTHS.map(m => Number(sumMonth(m)||0).toFixed(2))).concat([Number(sumFines()||0).toFixed(2), Number(sumTechs()||0).toFixed(2), Number(sumTorneo()||0).toFixed(2)]).join(','));
+      const grand = MONTHS.reduce((acc,m)=> acc + sumMonth(m), 0) + sumFines() + sumTechs() + sumTorneo();
+      lines.push(['Total General','', Number(grand||0).toFixed(2)].join(','));
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().slice(0,10); a.download = `liga-halcones-${app.year}-${dateStr}.csv`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+
+    // Gastos por mes: render y eventos
+    function renderExpenses(){
+      const idx = Number($('#expenseMonthSelect').val() || 0);
+      const m = MONTHS[idx];
+      const list = $('#expenseList').empty();
+      const arr = app.data[app.year]?.expenses?.[m] || [];
+      arr.forEach((e, i) => {
+        const tr = $('<tr>');
+        tr.append(`<td>${e.day || ''}</td>`);
+        tr.append(`<td>${escapeHtml(e.concept || '')}</td>`);
+        tr.append(`<td class="text-end">${fmt(e.amount || 0)}</td>`);
+        tr.append(`<td><button class="btn btn-sm btn-outline-danger delete-expense" data-index="${i}"><i class="fa-solid fa-trash"></i></button></td>`);
+        list.append(tr);
+      });
+      const total = arr.reduce((acc,x)=> acc + Number(x.amount||0), 0);
+      $('#expenseTotalCell').text(fmt(total));
+    }
+
+    $('#expenseMonthSelect').on('change', function(){ renderExpenses(); renderDashboard(); });
+    $('#dashboardMonthSelect').on('change', renderDashboard);
+    $('#addExpenseBtn').on('click', function(){
+      $('#expenseDay').val(''); $('#expenseConcept').val(''); $('#expenseAmount').val('');
+      new bootstrap.Modal('#expenseModal').show();
+    });
+    $('#saveExpenseBtn').on('click', function(){
+      const day = parseInt($('#expenseDay').val(), 10);
+      const concept = ($('#expenseConcept').val() || '').trim();
+      const amount = parseFloat($('#expenseAmount').val() || 0);
+      if(isNaN(amount) || amount <= 0 || !concept) return;
+      const idx = Number($('#expenseMonthSelect').val() || 0); const m = MONTHS[idx];
+      const yr = app.data[app.year]; yr.expenses = yr.expenses || {}; yr.expenses[m] = yr.expenses[m] || [];
+      yr.expenses[m].push({ day: isNaN(day)? null : day, concept, amount });
+      saveData(); renderExpenses(); renderTotals(); renderDashboard();
+      bootstrap.Modal.getInstance(document.getElementById('expenseModal')).hide();
+    });
+    $(document).on('click', '.delete-expense', function(){
+      const idx = Number($('#expenseMonthSelect').val() || 0); const m = MONTHS[idx];
+      const i = Number($(this).data('index'));
+      const yr = app.data[app.year]; if(!yr.expenses?.[m]) return;
+      yr.expenses[m].splice(i,1); saveData(); renderExpenses(); renderTotals(); renderDashboard();
+    });
+
+    // Init: hidratar desde Firestore y arrancar en blanco si no existe
+    $(async function(){
+      app.data = {};
+      setupYears();
+      await hydrateYearFromFirestore(app.year);
+      renderAll();
+    });
+  </script>
+</body>
+</html>
