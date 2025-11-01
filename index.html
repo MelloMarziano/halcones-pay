@@ -524,7 +524,9 @@
       const payments = {}; MONTHS.forEach(m => payments[m] = 0);
       const torneoByMonth = {}; MONTHS.forEach(m => torneoByMonth[m] = 0);
       const uniformeByMonth = {}; MONTHS.forEach(m => uniformeByMonth[m] = 0);
-      return { id: 'p_' + Math.random().toString(36).slice(2,9), name, payments, fines: 0, techs: 0, torneo: 0, torneoByMonth, uniformeByMonth, credit: 0, active: true, joinMonth: new Date().getMonth() };
+      const finesByMonth = {}; MONTHS.forEach(m => finesByMonth[m] = 0);
+      const techsByMonth = {}; MONTHS.forEach(m => techsByMonth[m] = 0);
+      return { id: 'p_' + Math.random().toString(36).slice(2,9), name, payments, fines: 0, techs: 0, torneo: 0, torneoByMonth, uniformeByMonth, finesByMonth, techsByMonth, credit: 0, active: true, joinMonth: new Date().getMonth() };
     }
     function ensureYear(y){
       if(!app.data[y]){
@@ -599,19 +601,27 @@
           td.append(input);
           const tMonth = Number(p.torneoByMonth?.[m] || 0);
           const uMonth = Number(p.uniformeByMonth?.[m] || 0);
-          if(tMonth > 0 || uMonth > 0){
+          const fMonth = Number(p.finesByMonth?.[m] || 0);
+          const teMonth = Number(p.techsByMonth?.[m] || 0);
+          if(tMonth > 0 || uMonth > 0 || fMonth > 0 || teMonth > 0){
             const badges = $('<div class="mt-1 d-flex gap-1 flex-wrap">');
             if(tMonth > 0) badges.append(`<span class="badge bg-warning text-dark" title="Torneo">T ${fmt(tMonth)}</span>`);
             if(uMonth > 0) badges.append(`<span class="badge bg-info text-dark" title="Uniforme">U ${fmt(uMonth)}</span>`);
+            if(fMonth > 0) badges.append(`<span class="badge bg-danger" title="Multa">Mul ${fmt(fMonth)}</span>`);
+            if(teMonth > 0) badges.append(`<span class="badge bg-secondary" title="Técnica">Tec ${fmt(teMonth)}</span>`);
             td.append(badges);
           }
           tr.append(td);
         });
-        const finesInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input fine-input">').val(Number(p.fines||0) ? Number(p.fines||0).toFixed(2) : '');
+        const finesSumMonths = MONTHS.reduce((acc, mm) => acc + Number(p.finesByMonth?.[mm] || 0), 0);
+        const finesTotal = Number(p.fines||0) + finesSumMonths;
+        const finesInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input fine-input">').val(finesTotal ? finesTotal.toFixed(2) : '');
         finesInput.prop('readonly', true);
         if(p.active === false) finesInput.prop('disabled', true);
         tr.append($('<td class="col-fines">').append(finesInput));
-        const techInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input tech-input">').val(Number(p.techs||0) ? Number(p.techs||0).toFixed(2) : '');
+        const techSumMonths = MONTHS.reduce((acc, mm) => acc + Number(p.techsByMonth?.[mm] || 0), 0);
+        const techTotal = Number(p.techs||0) + techSumMonths;
+        const techInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input tech-input">').val(techTotal ? techTotal.toFixed(2) : '');
         techInput.prop('readonly', true);
         if(p.active === false) techInput.prop('disabled', true);
         tr.append($('<td class="col-techs">').append(techInput));
@@ -626,29 +636,33 @@
       });
     }
 
-function sumMonth(m){
-  const yr = app.data[app.year];
-  let total = 0; yr.players.forEach(p => {
-    if(p.active !== false){
-      total += Number(p.payments[m]||0);
-      total += Number(p.torneoByMonth?.[m]||0);
-      total += Number(p.uniformeByMonth?.[m]||0);
+    function sumMonth(m){
+      const yr = app.data[app.year];
+      let total = 0; yr.players.forEach(p => {
+        if(p.active !== false){
+          total += Number(p.payments[m]||0);
+          total += Number(p.torneoByMonth?.[m]||0);
+          total += Number(p.uniformeByMonth?.[m]||0);
+          total += Number(p.finesByMonth?.[m]||0);
+          total += Number(p.techsByMonth?.[m]||0);
+        }
+      });
+      const expenses = (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
+      return total - expenses; // neto después de gastos del mes
     }
-  });
-  const expenses = (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
-  return total - expenses; // neto después de gastos del mes
-}
-function monthIncome(m){
-  const yr = app.data[app.year];
-  let total = 0; yr.players.forEach(p => {
-    if(p.active !== false){
-      total += Number(p.payments[m]||0);
-      total += Number(p.torneoByMonth?.[m]||0);
-      total += Number(p.uniformeByMonth?.[m]||0);
+    function monthIncome(m){
+      const yr = app.data[app.year];
+      let total = 0; yr.players.forEach(p => {
+        if(p.active !== false){
+          total += Number(p.payments[m]||0);
+          total += Number(p.torneoByMonth?.[m]||0);
+          total += Number(p.uniformeByMonth?.[m]||0);
+          total += Number(p.finesByMonth?.[m]||0);
+          total += Number(p.techsByMonth?.[m]||0);
+        }
+      });
+      return total;
     }
-  });
-  return total;
-}
     function monthExpenses(m){
       const yr = app.data[app.year];
       return (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
@@ -660,11 +674,31 @@ function incomeAllMonths(){
   return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFines() + sumTechs() + sumTorneo();
 }
 function incomeAllMonthsInclMonthlyExtras(){
-  // Incluye ingresos por mes (mensualidad + torneo/uniforme por mes) + globales de multas, técnicas y torneo global
-  return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFines() + sumTechs() + sumTorneoGlobal();
+  // Incluye ingresos por mes (mensualidad + extras por mes) + globales de multas, técnicas y torneo global
+  return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFinesGlobal() + sumTechsGlobal() + sumTorneoGlobal();
 }
-    function sumFines(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.fines||0); }); return t; }
-    function sumTechs(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.techs||0); }); return t; }
+    function sumFines(){
+      const yr = app.data[app.year];
+      let t = 0; yr.players.forEach(p => {
+        if(p.active !== false){
+          const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.finesByMonth?.[m]||0), 0);
+          t += monthsSum + Number(p.fines||0);
+        }
+      });
+      return t;
+    }
+    function sumTechs(){
+      const yr = app.data[app.year];
+      let t = 0; yr.players.forEach(p => {
+        if(p.active !== false){
+          const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.techsByMonth?.[m]||0), 0);
+          t += monthsSum + Number(p.techs||0);
+        }
+      });
+      return t;
+    }
+    function sumFinesGlobal(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.fines||0); }); return t; }
+    function sumTechsGlobal(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.techs||0); }); return t; }
 function sumTorneo(){
   const yr = app.data[app.year];
   let t = 0;
@@ -694,8 +728,8 @@ function sumTorneoGlobal(){
         row.append(`<th class="text-end fw-semibold" title="Gastos: ${fmt(exp)}">${fmt(v)}</th>`);
       });
       const finesTotal = sumFines(); const techsTotal = sumTechs(); const torneoTotal = sumTorneo();
-      const torneoGlobalOnly = sumTorneoGlobal();
-      grand += finesTotal + techsTotal + torneoGlobalOnly;
+      const finesGlobalOnly = sumFinesGlobal(); const techsGlobalOnly = sumTechsGlobal(); const torneoGlobalOnly = sumTorneoGlobal();
+      grand += finesGlobalOnly + techsGlobalOnly + torneoGlobalOnly;
       row.append(`<th class="text-end fw-semibold col-fines">${fmt(finesTotal)}</th>`);
       row.append(`<th class="text-end fw-semibold col-techs">${fmt(techsTotal)}</th>`);
       row.append(`<th class="text-end fw-semibold col-torneo">${fmt(torneoTotal)}</th>`);
@@ -745,7 +779,7 @@ function sumTorneoGlobal(){
         } else {
           txt = `Sin cuota base definida. Configura la cuota en “Agregar Concepto” para repartir automáticamente por meses.`;
         }
-      } else if(type === 'torneo' || type === 'uniforme'){
+      } else if(type === 'torneo' || type === 'uniforme' || type === 'multa' || type === 'tecnica'){
         const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
         const m = MONTHS[idx];
         if(amount > 0){ txt = `Se aplicará ${fmt(amount)} al mes ${m}.`; }
@@ -802,7 +836,7 @@ function sumTorneoGlobal(){
     // Modal de pagos rápidos
     $('#paymentType').on('change', function(){
       const t = $('#paymentType').val();
-      const showMonth = (t === 'torneo' || t === 'uniforme');
+      const showMonth = (t === 'torneo' || t === 'uniforme' || t === 'multa' || t === 'tecnica');
       $('#paymentMonthGroup').toggleClass('d-none', !showMonth);
       updatePaymentHelp();
     });
@@ -883,8 +917,18 @@ function sumTorneoGlobal(){
       if(player){
         if(type === 'mensualidad'){
           allocateMensualidad(player, amount);
-        } else if(type === 'multa') { player.fines = Number(player.fines||0) + amount; }
-        else if(type === 'tecnica') { player.techs = Number(player.techs||0) + amount; }
+        } else if(type === 'multa') {
+          const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
+          const m = MONTHS[idx];
+          if(!player.finesByMonth) player.finesByMonth = {};
+          player.finesByMonth[m] = Number(player.finesByMonth[m]||0) + amount;
+        }
+        else if(type === 'tecnica') {
+          const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
+          const m = MONTHS[idx];
+          if(!player.techsByMonth) player.techsByMonth = {};
+          player.techsByMonth[m] = Number(player.techsByMonth[m]||0) + amount;
+        }
         else if(type === 'torneo') {
           const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
           const m = MONTHS[idx];
@@ -963,7 +1007,19 @@ function sumTorneoGlobal(){
       lines.push(['Cuota base por mes', yr.conceptBase].join(','));
       lines.push('');
       const header = ['Jugador','Acciones'].concat(MONTHS).concat(['Multas','Técnicas','Torneo']); lines.push(header.join(','));
-      yr.players.forEach(p => { const row = [p.name,(p.active===false?'Inactivo':'')].concat(MONTHS.map(m => Number(p.payments[m]||0).toFixed(2))).concat([Number(p.fines||0).toFixed(2), Number(p.techs||0).toFixed(2), Number(p.torneo||0).toFixed(2)]); lines.push(row.join(',')); });
+      yr.players.forEach(p => {
+        const finesSumMonths = MONTHS.reduce((acc,m)=> acc + Number(p.finesByMonth?.[m]||0), 0);
+        const techSumMonths = MONTHS.reduce((acc,m)=> acc + Number(p.techsByMonth?.[m]||0), 0);
+        const torneoSumMonths = MONTHS.reduce((acc,m)=> acc + Number(p.torneoByMonth?.[m]||0), 0);
+        const row = [p.name,(p.active===false?'Inactivo':'')]
+          .concat(MONTHS.map(m => Number(p.payments[m]||0).toFixed(2)))
+          .concat([
+            Number(Number(p.fines||0) + finesSumMonths).toFixed(2),
+            Number(Number(p.techs||0) + techSumMonths).toFixed(2),
+            Number(Number(p.torneo||0) + torneoSumMonths).toFixed(2)
+          ]);
+        lines.push(row.join(','));
+      });
       lines.push(['Total por mes',''].concat(MONTHS.map(m => Number(sumMonth(m)||0).toFixed(2))).concat([Number(sumFines()||0).toFixed(2), Number(sumTechs()||0).toFixed(2), Number(sumTorneo()||0).toFixed(2)]).join(','));
       const grand = MONTHS.reduce((acc,m)=> acc + sumMonth(m), 0) + sumFines() + sumTechs() + sumTorneoGlobal();
       lines.push(['Total General','', Number(grand||0).toFixed(2)].join(','));
