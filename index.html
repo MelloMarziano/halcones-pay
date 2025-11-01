@@ -68,28 +68,42 @@
     .bg-fines, .col-fines { background-color: var(--papaya-whip-700) !important; }
     .bg-techs, .col-techs { background-color: var(--fire-brick-900) !important; }
     .bg-torneo, .col-torneo { background-color: var(--air-blue-900) !important; }
-    /* Fila inactiva */
-    .inactive-row { background-color: var(--air-blue-900) !important; opacity: .9; }
-    .inactive-row .month-input { background-color: var(--papaya-whip-900); }
+    /* Ocultar columnas globales (Multas/Técnicas/Torneo) en la UI */
+    thead .bg-fines, thead .bg-techs, thead .bg-torneo,
+    tbody .col-fines, tbody .col-techs, tbody .col-torneo,
+    tfoot .col-fines, tfoot .col-techs, tfoot .col-torneo { display: none !important; }
+    /* Fila inactiva: fondo negro, texto blanco en toda la fila */
+    .inactive-row { background-color: #000 !important; color: #fff !important; }
+    .inactive-row td, .inactive-row th { background-color: #000 !important; color: #fff !important; }
+    .inactive-row:hover td, .inactive-row:hover th { background-color: #000 !important; color: #fff !important; }
+    .inactive-row .sticky-player, .inactive-row .sticky-actions { background-color: #000 !important; color: #fff !important; }
+    /* Forzar inputs de meses en negro, sin importar estados (due/partial/paid) */
+    .inactive-row .month-input {
+      background-color: #000;
+      border-color: #333;
+      color: #fff;
+    }
+    /* Neutralizar colores de badges dentro de filas inactivas */
+    .inactive-row .badge { background-color: #111 !important; color: #fff !important; filter: none; }
     /* Celda con abono parcial (pendiente) */
     .partial-cell { background-color: var(--papaya-whip-400) !important; }
     /* Input de mes vencido (rojo) */
     .month-input.due-input {
-      background-color: var(--fire-brick-500);
-      border-color: var(--barn-red-600);
-      color: #fff;
+      background-color: var(--fire-brick-500) !important;
+      border-color: var(--barn-red-600) !important;
+      color: #fff !important;
     }
     /* Input de mes pendiente (parcial, no rojo) */
     .month-input.partial-input {
-      background-color: var(--papaya-whip-400);
-      border-color: var(--papaya-whip-200);
-      color: #111;
+      background-color: var(--papaya-whip-400) !important;
+      border-color: var(--papaya-whip-200) !important;
+      color: #111 !important;
     }
     /* Input de mes pagado (success) */
     .month-input.paid-input {
-      background-color: #d1fae5; /* verde pastel */
-      border-color: #a7f3d0;
-      color: #065f46;
+      background-color: #d1fae5 !important; /* verde pastel */
+      border-color: #a7f3d0 !important;
+      color: #065f46 !important;
     }
 
     /* Cards métricas (colores y tamaños más sobrios) */
@@ -105,7 +119,7 @@
     .metric-expense { --accent-color: var(--fire-brick-600); }
     .metric-balance { --accent-color: var(--air-blue-600); }
   </style>
-  
+
 </head>
 <body>
   <div class="container-fluid py-3">
@@ -238,16 +252,16 @@
                 <th>Oct</th>
                 <th>Nov</th>
                 <th>Dic</th>
-                <th class="bg-fines">Multas</th>
+                <!-- <th class="bg-fines">Multas</th>
                 <th class="bg-techs">Técnicas</th>
-                <th class="bg-torneo">Torneo</th>
+                <th class="bg-torneo">Torneo</th> -->
               </tr>
             </thead>
             <tbody id="playersTbody"></tbody>
             <tfoot>
               <tr id="monthTotalsRow" class="table-secondary"></tr>
               <tr class="table-danger total-general">
-                <th colspan="16" class="text-end">Total General</th>
+                <th colspan="13" class="text-end">Total General</th>
                 <th id="grandTotalCell" class="text-end">$0.00</th>
               </tr>
             </tfoot>
@@ -301,7 +315,6 @@
             <tr class="table-secondary">
               <th colspan="2" class="text-end">Total del mes</th>
               <th id="expenseTotalCell" class="text-end">$0.00</th>
-              <th></th>
             </tr>
           </tfoot>
         </table>
@@ -639,13 +652,11 @@
     function sumMonth(m){
       const yr = app.data[app.year];
       let total = 0; yr.players.forEach(p => {
-        if(p.active !== false){
-          total += Number(p.payments[m]||0);
-          total += Number(p.torneoByMonth?.[m]||0);
-          total += Number(p.uniformeByMonth?.[m]||0);
-          total += Number(p.finesByMonth?.[m]||0);
-          total += Number(p.techsByMonth?.[m]||0);
-        }
+        total += Number(p.payments[m]||0);
+        total += Number(p.torneoByMonth?.[m]||0);
+        total += Number(p.uniformeByMonth?.[m]||0);
+        total += Number(p.finesByMonth?.[m]||0);
+        total += Number(p.techsByMonth?.[m]||0);
       });
       const expenses = (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
       return total - expenses; // neto después de gastos del mes
@@ -653,13 +664,11 @@
     function monthIncome(m){
       const yr = app.data[app.year];
       let total = 0; yr.players.forEach(p => {
-        if(p.active !== false){
-          total += Number(p.payments[m]||0);
-          total += Number(p.torneoByMonth?.[m]||0);
-          total += Number(p.uniformeByMonth?.[m]||0);
-          total += Number(p.finesByMonth?.[m]||0);
-          total += Number(p.techsByMonth?.[m]||0);
-        }
+        total += Number(p.payments[m]||0);
+        total += Number(p.torneoByMonth?.[m]||0);
+        total += Number(p.uniformeByMonth?.[m]||0);
+        total += Number(p.finesByMonth?.[m]||0);
+        total += Number(p.techsByMonth?.[m]||0);
       });
       return total;
     }
@@ -680,47 +689,40 @@ function incomeAllMonthsInclMonthlyExtras(){
     function sumFines(){
       const yr = app.data[app.year];
       let t = 0; yr.players.forEach(p => {
-        if(p.active !== false){
-          const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.finesByMonth?.[m]||0), 0);
-          t += monthsSum + Number(p.fines||0);
-        }
+        const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.finesByMonth?.[m]||0), 0);
+        t += monthsSum + Number(p.fines||0);
       });
       return t;
     }
     function sumTechs(){
       const yr = app.data[app.year];
       let t = 0; yr.players.forEach(p => {
-        if(p.active !== false){
-          const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.techsByMonth?.[m]||0), 0);
-          t += monthsSum + Number(p.techs||0);
-        }
+        const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.techsByMonth?.[m]||0), 0);
+        t += monthsSum + Number(p.techs||0);
       });
       return t;
     }
-    function sumFinesGlobal(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.fines||0); }); return t; }
-    function sumTechsGlobal(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.techs||0); }); return t; }
+    function sumFinesGlobal(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { t += Number(p.fines||0); }); return t; }
+    function sumTechsGlobal(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { t += Number(p.techs||0); }); return t; }
 function sumTorneo(){
   const yr = app.data[app.year];
   let t = 0;
   yr.players.forEach(p => {
-    if(p.active !== false){
-      const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.torneoByMonth?.[m]||0), 0);
-      t += Number(p.torneo||0) + monthsSum;
-    }
+    const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.torneoByMonth?.[m]||0), 0);
+    t += Number(p.torneo||0) + monthsSum;
   });
   return t;
 }
 function sumTorneoGlobal(){
   const yr = app.data[app.year];
   let t = 0;
-  yr.players.forEach(p => { if(p.active !== false){ t += Number(p.torneo||0); } });
+  yr.players.forEach(p => { t += Number(p.torneo||0); });
   return t;
 }
     function renderTotals(){
       const yr = app.data[app.year];
       const row = $('#monthTotalsRow').empty();
-      row.append('<th class="sticky-player player-col text-end">Total por mes</th>');
-      row.append('<th class="sticky-actions actions-col"></th>');
+      row.append('<th class="sticky-player player-col text-end" colspan="2">Total por mes</th>');
       let grand = 0;
       MONTHS.forEach(m => {
         const v = sumMonth(m); grand += v;
