@@ -436,7 +436,12 @@
               <option value="multa">Multa</option>
               <option value="tecnica">Técnica</option>
               <option value="torneo">Torneo</option>
+              <option value="uniforme">Uniforme</option>
             </select>
+          </div>
+          <div class="mb-3 d-none" id="paymentMonthGroup">
+            <label for="paymentMonthSelect" class="form-label">Mes</label>
+            <select id="paymentMonthSelect" class="form-select"></select>
           </div>
           <div class="mb-3">
             <label for="paymentAmount" class="form-label">Monto</label>
@@ -517,7 +522,9 @@
 
     function mkPlayer(name) {
       const payments = {}; MONTHS.forEach(m => payments[m] = 0);
-      return { id: 'p_' + Math.random().toString(36).slice(2,9), name, payments, fines: 0, techs: 0, torneo: 0, credit: 0, active: true, joinMonth: new Date().getMonth() };
+      const torneoByMonth = {}; MONTHS.forEach(m => torneoByMonth[m] = 0);
+      const uniformeByMonth = {}; MONTHS.forEach(m => uniformeByMonth[m] = 0);
+      return { id: 'p_' + Math.random().toString(36).slice(2,9), name, payments, fines: 0, techs: 0, torneo: 0, torneoByMonth, uniformeByMonth, credit: 0, active: true, joinMonth: new Date().getMonth() };
     }
     function ensureYear(y){
       if(!app.data[y]){
@@ -590,6 +597,14 @@
           if(isDueZero) input.addClass('due-input');
           if(isPaid) input.addClass('paid-input');
           td.append(input);
+          const tMonth = Number(p.torneoByMonth?.[m] || 0);
+          const uMonth = Number(p.uniformeByMonth?.[m] || 0);
+          if(tMonth > 0 || uMonth > 0){
+            const badges = $('<div class="mt-1 d-flex gap-1 flex-wrap">');
+            if(tMonth > 0) badges.append(`<span class="badge bg-warning text-dark" title="Torneo">T ${fmt(tMonth)}</span>`);
+            if(uMonth > 0) badges.append(`<span class="badge bg-info text-dark" title="Uniforme">U ${fmt(uMonth)}</span>`);
+            td.append(badges);
+          }
           tr.append(td);
         });
         const finesInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input fine-input">').val(Number(p.fines||0) ? Number(p.fines||0).toFixed(2) : '');
@@ -600,7 +615,9 @@
         techInput.prop('readonly', true);
         if(p.active === false) techInput.prop('disabled', true);
         tr.append($('<td class="col-techs">').append(techInput));
-        const torneoInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input torneo-input">').val(Number(p.torneo||0) ? Number(p.torneo||0).toFixed(2) : '');
+        const torSumMonths = MONTHS.reduce((acc, mm) => acc + Number(p.torneoByMonth?.[mm] || 0), 0);
+        const torneoTotal = Number(p.torneo||0) + torSumMonths;
+        const torneoInput = $('<input type="number" min="0" step="0.01" class="form-control form-control-sm text-end month-input torneo-input">').val(torneoTotal ? torneoTotal.toFixed(2) : '');
         torneoInput.prop('readonly', true);
         if(p.active === false) torneoInput.prop('disabled', true);
         tr.append($('<td class="col-torneo">').append(torneoInput));
@@ -609,17 +626,29 @@
       });
     }
 
-    function sumMonth(m){
-      const yr = app.data[app.year];
-      let total = 0; yr.players.forEach(p => { if(p.active !== false) total += Number(p.payments[m]||0); });
-      const expenses = (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
-      return total - expenses; // neto después de gastos del mes
+function sumMonth(m){
+  const yr = app.data[app.year];
+  let total = 0; yr.players.forEach(p => {
+    if(p.active !== false){
+      total += Number(p.payments[m]||0);
+      total += Number(p.torneoByMonth?.[m]||0);
+      total += Number(p.uniformeByMonth?.[m]||0);
     }
-    function monthIncome(m){
-      const yr = app.data[app.year];
-      let total = 0; yr.players.forEach(p => { if(p.active !== false) total += Number(p.payments[m]||0); });
-      return total;
+  });
+  const expenses = (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
+  return total - expenses; // neto después de gastos del mes
+}
+function monthIncome(m){
+  const yr = app.data[app.year];
+  let total = 0; yr.players.forEach(p => {
+    if(p.active !== false){
+      total += Number(p.payments[m]||0);
+      total += Number(p.torneoByMonth?.[m]||0);
+      total += Number(p.uniformeByMonth?.[m]||0);
     }
+  });
+  return total;
+}
     function monthExpenses(m){
       const yr = app.data[app.year];
       return (yr.expenses?.[m] || []).reduce((acc, e) => acc + Number(e.amount||0), 0);
@@ -627,12 +656,32 @@
     function expensesAllMonths(){
       return MONTHS.reduce((acc,m)=> acc + monthExpenses(m), 0);
     }
-    function incomeAllMonths(){
-      return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFines() + sumTechs() + sumTorneo();
-    }
+function incomeAllMonths(){
+  return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFines() + sumTechs() + sumTorneo();
+}
+function incomeAllMonthsInclMonthlyExtras(){
+  // Incluye ingresos por mes (mensualidad + torneo/uniforme por mes) + globales de multas, técnicas y torneo global
+  return MONTHS.reduce((acc,m)=> acc + monthIncome(m), 0) + sumFines() + sumTechs() + sumTorneoGlobal();
+}
     function sumFines(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.fines||0); }); return t; }
     function sumTechs(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.techs||0); }); return t; }
-    function sumTorneo(){ const yr = app.data[app.year]; let t = 0; yr.players.forEach(p => { if(p.active !== false) t += Number(p.torneo||0); }); return t; }
+function sumTorneo(){
+  const yr = app.data[app.year];
+  let t = 0;
+  yr.players.forEach(p => {
+    if(p.active !== false){
+      const monthsSum = MONTHS.reduce((acc,m)=> acc + Number(p.torneoByMonth?.[m]||0), 0);
+      t += Number(p.torneo||0) + monthsSum;
+    }
+  });
+  return t;
+}
+function sumTorneoGlobal(){
+  const yr = app.data[app.year];
+  let t = 0;
+  yr.players.forEach(p => { if(p.active !== false){ t += Number(p.torneo||0); } });
+  return t;
+}
     function renderTotals(){
       const yr = app.data[app.year];
       const row = $('#monthTotalsRow').empty();
@@ -645,7 +694,8 @@
         row.append(`<th class="text-end fw-semibold" title="Gastos: ${fmt(exp)}">${fmt(v)}</th>`);
       });
       const finesTotal = sumFines(); const techsTotal = sumTechs(); const torneoTotal = sumTorneo();
-      grand += finesTotal + techsTotal + torneoTotal;
+      const torneoGlobalOnly = sumTorneoGlobal();
+      grand += finesTotal + techsTotal + torneoGlobalOnly;
       row.append(`<th class="text-end fw-semibold col-fines">${fmt(finesTotal)}</th>`);
       row.append(`<th class="text-end fw-semibold col-techs">${fmt(techsTotal)}</th>`);
       row.append(`<th class="text-end fw-semibold col-torneo">${fmt(torneoTotal)}</th>`);
@@ -654,7 +704,7 @@
 
     function renderDashboard(){
       // Globales
-      const gIncome = incomeAllMonths();
+      const gIncome = incomeAllMonthsInclMonthlyExtras();
       const gExpense = expensesAllMonths();
       const gBalance = gIncome - gExpense;
       $('#globalIncomeValue').text(fmt(gIncome));
@@ -695,6 +745,11 @@
         } else {
           txt = `Sin cuota base definida. Configura la cuota en “Agregar Concepto” para repartir automáticamente por meses.`;
         }
+      } else if(type === 'torneo' || type === 'uniforme'){
+        const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
+        const m = MONTHS[idx];
+        if(amount > 0){ txt = `Se aplicará ${fmt(amount)} al mes ${m}.`; }
+        else { txt = `Selecciona el mes para ${type}.`; }
       } else { txt = ''; }
       $('#paymentHelp').text(txt);
     }
@@ -746,6 +801,9 @@
 
     // Modal de pagos rápidos
     $('#paymentType').on('change', function(){
+      const t = $('#paymentType').val();
+      const showMonth = (t === 'torneo' || t === 'uniforme');
+      $('#paymentMonthGroup').toggleClass('d-none', !showMonth);
       updatePaymentHelp();
     });
     $(document).on('click', '.payment-player', function(){
@@ -753,6 +811,8 @@
       $('#paymentPlayerId').val(id);
       $('#paymentAmount').val('');
       $('#paymentType').val('mensualidad').trigger('change');
+      const sel = $('#paymentMonthSelect');
+      if(sel.length){ sel.empty(); MONTHS.forEach((m,i)=> sel.append(`<option value="${i}">${m}</option>`)); sel.val(new Date().getMonth()); }
       $('#paymentModalTitle').text(`Agregar Pago - ${name}`);
       updatePaymentHelp();
       new bootstrap.Modal('#paymentModal').show();
@@ -825,7 +885,18 @@
           allocateMensualidad(player, amount);
         } else if(type === 'multa') { player.fines = Number(player.fines||0) + amount; }
         else if(type === 'tecnica') { player.techs = Number(player.techs||0) + amount; }
-        else if(type === 'torneo') { player.torneo = Number(player.torneo||0) + amount; }
+        else if(type === 'torneo') {
+          const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
+          const m = MONTHS[idx];
+          if(!player.torneoByMonth) player.torneoByMonth = {};
+          player.torneoByMonth[m] = Number(player.torneoByMonth[m]||0) + amount;
+        }
+        else if(type === 'uniforme') {
+          const idx = Number($('#paymentMonthSelect').val() || new Date().getMonth());
+          const m = MONTHS[idx];
+          if(!player.uniformeByMonth) player.uniformeByMonth = {};
+          player.uniformeByMonth[m] = Number(player.uniformeByMonth[m]||0) + amount;
+        }
       }
       saveData(); renderAll();
       bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
@@ -894,7 +965,7 @@
       const header = ['Jugador','Acciones'].concat(MONTHS).concat(['Multas','Técnicas','Torneo']); lines.push(header.join(','));
       yr.players.forEach(p => { const row = [p.name,(p.active===false?'Inactivo':'')].concat(MONTHS.map(m => Number(p.payments[m]||0).toFixed(2))).concat([Number(p.fines||0).toFixed(2), Number(p.techs||0).toFixed(2), Number(p.torneo||0).toFixed(2)]); lines.push(row.join(',')); });
       lines.push(['Total por mes',''].concat(MONTHS.map(m => Number(sumMonth(m)||0).toFixed(2))).concat([Number(sumFines()||0).toFixed(2), Number(sumTechs()||0).toFixed(2), Number(sumTorneo()||0).toFixed(2)]).join(','));
-      const grand = MONTHS.reduce((acc,m)=> acc + sumMonth(m), 0) + sumFines() + sumTechs() + sumTorneo();
+      const grand = MONTHS.reduce((acc,m)=> acc + sumMonth(m), 0) + sumFines() + sumTechs() + sumTorneoGlobal();
       lines.push(['Total General','', Number(grand||0).toFixed(2)].join(','));
       const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
