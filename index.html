@@ -213,11 +213,8 @@
           <h5 class="mb-0">Control de Pagos</h5>
           <div class="d-flex flex-wrap align-items-center gap-2">
             <select id="yearSelect" class="form-select form-select-sm" style="width: 110px;"></select>
-            <button id="reportBtn" class="btn btn-info btn-sm">
-              <i class="fa-solid fa-file-csv me-1"></i> Generar Reporte
-            </button>
-            <button id="importBtn" class="btn btn-secondary btn-sm">
-              <i class="fa-solid fa-file-import me-1"></i> Importar
+            <button id="pdfReportBtn" class="btn btn-primary btn-sm">
+              <i class="fa-solid fa-file-pdf me-1"></i> Generar PDF
             </button>
             <button id="addPlayerBtn" class="btn btn-danger btn-sm">
               <i class="fa-solid fa-user-plus me-1"></i> Agregar Jugador
@@ -476,6 +473,9 @@
   <!-- jQuery & Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js"></script>
   <!-- Firebase SDK (module) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
@@ -789,6 +789,99 @@ function sumTorneoGlobal(){
       } else { txt = ''; }
       $('#paymentHelp').text(txt);
     }
+
+    // Reporte PDF: estados por mes y adeudo total, ordenado por quien debe más
+    function computePlayerDebt(p){
+      const base = parseFloat(app.data[app.year]?.conceptBase || 0);
+      const nowIdx = new Date().getMonth();
+      const joinIdx = Number(p.joinMonth ?? 0);
+      let debt = 0;
+      for(let i=joinIdx; i<=nowIdx; i++){
+        const m = MONTHS[i];
+        const val = Number(p.payments[m]||0);
+        if(base > 0){
+          const need = Math.max(0, base - val);
+          debt += need;
+        }
+      }
+      return debt;
+    }
+    function generatePDFReport(){
+      ensureYear(app.year);
+      const yr = app.data[app.year];
+      const base = parseFloat(yr?.conceptBase || 0);
+      const nowIdx = new Date().getMonth();
+      const rows = (yr.players||[]).map(p => {
+        const joinIdx = Number(p.joinMonth ?? 0);
+        const statuses = MONTHS.map((m, idx) => {
+          const val = Number(p.payments[m]||0);
+          let text = '—'; let fill = [229,231,235]; let color = [107,114,128];
+          if(idx < joinIdx){
+            text = '—'; fill = [229,231,235]; color = [107,114,128];
+          } else if(idx > nowIdx){
+            // Mostrar futuro solo si tiene pago; sin pago, se deja en gris
+            if(base > 0){
+              if(val >= base){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
+              else if(val > 0){ text = 'Parcial'; fill = [255,237,213]; color = [120,53,15]; }
+              else { text = '—'; fill = [229,231,235]; color = [107,114,128]; }
+            } else {
+              if(val > 0){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
+              else { text = '—'; fill = [229,231,235]; color = [107,114,128]; }
+            }
+          } else {
+            if(base > 0){
+              if(val >= base){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
+              else if(val > 0){ text = 'Parcial'; fill = [255,237,213]; color = [120,53,15]; }
+              else { text = 'Debe'; fill = [254,202,202]; color = [127,29,29]; }
+            } else {
+              if(val > 0){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
+              else { text = '—'; fill = [229,231,235]; color = [107,114,128]; }
+            }
+          }
+          return { text, fill, color };
+        });
+        const debt = computePlayerDebt(p);
+        return { name: p.name, statuses, debt };
+      });
+      rows.sort((a,b) => b.debt - a.debt);
+      const head = ['Jugador', ...MONTHS, 'Adeudo'];
+      const body = rows.map(r => {
+        const cells = [
+          { content: r.name, styles: { fontStyle: 'bold' } },
+          ...r.statuses.map(st => ({ content: st.text, styles: { fillColor: st.fill, textColor: st.color, halign: 'center' } })),
+          { content: fmt(r.debt), styles: { halign: 'right', fontStyle: 'bold' } }
+        ];
+        return cells;
+      });
+      const { jsPDF } = window.jspdf || {};
+      if(!jsPDF || !window.jspdf.jsPDF){ alert('No se pudo cargar jsPDF. Verifica tu conexión.'); return; }
+      const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'A4' });
+      // Encabezado: título y fecha centrados
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 40;
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(22);
+      doc.setTextColor(17,17,17);
+      doc.text('Reporte de pagos Liga Halcones', pageWidth/2, 44, { align: 'center' });
+      const fechaStr = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(12);
+      doc.setTextColor(107,114,128);
+      doc.text(`Generado el ${fechaStr}`, pageWidth/2, 64, { align: 'center' });
+      doc.setDrawColor(226,232,240);
+      doc.line(margin, 72, pageWidth - margin, 72);
+      doc.autoTable({
+        head: [head],
+        body,
+        startY: 86,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [243,244,246], textColor: [17,17,17] },
+        columnStyles: { 0: { cellWidth: 120 }, [head.length-1]: { halign: 'right' } },
+        theme: 'grid'
+      });
+      doc.save(`Reporte_Pagos_${app.year}.pdf`);
+    }
+    $('#pdfReportBtn').on('click', generatePDFReport);
 
     // Events
     $(document).on('input', '.month-input', function(){
