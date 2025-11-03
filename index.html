@@ -815,30 +815,33 @@ function sumTorneoGlobal(){
         const joinIdx = Number(p.joinMonth ?? 0);
         const statuses = MONTHS.map((m, idx) => {
           const val = Number(p.payments[m]||0);
-          let text = '—'; let fill = [229,231,235]; let color = [107,114,128];
+          let fill = [229,231,235]; let color = [107,114,128];
+          let displayVal = val;
           if(idx < joinIdx){
-            text = '—'; fill = [229,231,235]; color = [107,114,128];
+            // Antes de ingresar, no aplica: mostrar $0.00 en gris
+            displayVal = 0; fill = [229,231,235]; color = [107,114,128];
           } else if(idx > nowIdx){
-            // Mostrar futuro solo si tiene pago; sin pago, se deja en gris
+            // Futuro: si hay pago, marcar como pagado/parcial; sin pago, gris
             if(base > 0){
-              if(val >= base){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
-              else if(val > 0){ text = 'Parcial'; fill = [255,237,213]; color = [120,53,15]; }
-              else { text = '—'; fill = [229,231,235]; color = [107,114,128]; }
+              if(val >= base){ fill = [209,250,229]; color = [6,95,70]; }
+              else if(val > 0){ fill = [255,237,213]; color = [120,53,15]; }
+              else { fill = [229,231,235]; color = [107,114,128]; }
             } else {
-              if(val > 0){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
-              else { text = '—'; fill = [229,231,235]; color = [107,114,128]; }
+              if(val > 0){ fill = [209,250,229]; color = [6,95,70]; }
+              else { fill = [229,231,235]; color = [107,114,128]; }
             }
           } else {
+            // Meses hasta el actual: rojo si debe
             if(base > 0){
-              if(val >= base){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
-              else if(val > 0){ text = 'Parcial'; fill = [255,237,213]; color = [120,53,15]; }
-              else { text = 'Debe'; fill = [254,202,202]; color = [127,29,29]; }
+              if(val >= base){ fill = [209,250,229]; color = [6,95,70]; }
+              else if(val > 0){ fill = [255,237,213]; color = [120,53,15]; }
+              else { displayVal = 0; fill = [254,202,202]; color = [127,29,29]; }
             } else {
-              if(val > 0){ text = 'Pagado'; fill = [209,250,229]; color = [6,95,70]; }
-              else { text = '—'; fill = [229,231,235]; color = [107,114,128]; }
+              if(val > 0){ fill = [209,250,229]; color = [6,95,70]; }
+              else { displayVal = 0; fill = [229,231,235]; color = [107,114,128]; }
             }
           }
-          return { text, fill, color };
+          return { text: fmt(displayVal), fill, color };
         });
         const debt = computePlayerDebt(p);
         return { name: p.name, statuses, debt };
@@ -848,7 +851,7 @@ function sumTorneoGlobal(){
       const body = rows.map(r => {
         const cells = [
           { content: r.name, styles: { fontStyle: 'bold' } },
-          ...r.statuses.map(st => ({ content: st.text, styles: { fillColor: st.fill, textColor: st.color, halign: 'center' } })),
+          ...r.statuses.map(st => ({ content: st.text, styles: { fillColor: st.fill, textColor: st.color, halign: 'right' } })),
           { content: fmt(r.debt), styles: { halign: 'right', fontStyle: 'bold' } }
         ];
         return cells;
